@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>RXTX-NET Shell</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: radial-gradient(ellipse 80% 50% at 50% 0%, #1a1212, #080808 60%);
+      color: #c8c4bc; min-height: 100vh; padding: 1.5rem;
+    }
+    .wrap { max-width: 40rem; margin: 0 auto; }
+    h1 { color: #ebe6dc; font-size: 1.35rem; margin-bottom: .25rem; }
+    .mark { color: #9a4040; }
+    .sub { color: #777; font-size: .85rem; margin-bottom: 1.5rem; line-height: 1.5; }
+    .tabs { display: flex; gap: .5rem; margin-bottom: 1rem; }
+    .tab {
+      flex: 1; padding: .65rem; text-align: center; border: 1px solid #333;
+      background: #141414; color: #aaa; border-radius: 8px; cursor: pointer;
+    }
+    .tab.on { border-color: #9a4040; color: #ebe6dc; background: #1a1414; }
+    .card {
+      background: #121212; border: 1px solid #2a2222; border-radius: 12px;
+      padding: 1.25rem; margin-bottom: 1rem;
+    }
+    .price { font-size: 1.5rem; color: #ebe6dc; font-weight: 600; }
+    label { display: block; font-size: .75rem; color: #888; margin: .75rem 0 .35rem; text-transform: uppercase; letter-spacing: .08em; }
+    input, select {
+      width: 100%; padding: .55rem .65rem; background: #1a1a1a; border: 1px solid #333;
+      color: #ddd; border-radius: 6px;
+    }
+    button.primary {
+      width: 100%; margin-top: 1rem; padding: .7rem; background: #3a2020;
+      border: 1px solid #9a4040; color: #ebe6dc; border-radius: 8px; cursor: pointer; font-weight: 600;
+    }
+    button.primary:hover { background: #4a2828; }
+    .hint { font-size: .8rem; color: #666; margin-top: .75rem; line-height: 1.45; }
+    .ok { color: #6a6; font-size: .85rem; margin-top: .5rem; }
+    .err { color: #c66; font-size: .85rem; margin-top: .5rem; }
+    .inv { background: #0d0d0d; border: 1px solid #222; border-radius: 8px; padding: .85rem; margin-top: .75rem; font-size: .82rem; }
+    .inv code { color: #9a6060; word-break: break-all; }
+    .conf-bar { height: 6px; background: #222; border-radius: 4px; margin-top: .6rem; overflow: hidden; }
+    .conf-fill { height: 100%; background: #9a4040; transition: width .4s; }
+    .conf-timer { font-variant-numeric: tabular-nums; color: #9a6060; font-size: .78rem; margin-top: .35rem; }
+    .lang { text-align: right; margin-bottom: .5rem; }
+    .lang button { background: none; border: none; color: #666; cursor: pointer; margin-left: .5rem; }
+    .lang button.on { color: #9a6060; }
+    [hidden] { display: none !important; }
+    .install-bar { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #2a2222; }
+    button.install {
+      width: 100%; padding: .85rem; background: #2a4a2a; border: 1px solid #4a8a4a;
+      color: #ebe6dc; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 1rem;
+    }
+    button.install:hover { background: #355a35; }
+    #lock { position: fixed; inset: 0; background: radial-gradient(ellipse 70% 50% at 50% 0%, #1a1212, #080808f5);
+      z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 2rem; }
+    .lock-card {
+      width: 100%; max-width: 26rem; background: #121212; border: 1px solid #2a2222;
+      border-radius: 14px; padding: 1.5rem 1.35rem; box-shadow: 0 12px 40px #0008;
+    }
+    #lock h2 { color: #ebe6dc; margin-bottom: .35rem; font-size: 1.2rem; text-align: center; }
+    #lock-warn { color: #9a6060; font-size: .82rem; text-align: center; margin-bottom: 1rem; line-height: 1.45; }
+    .inst-bar { height: 5px; background: #222; border-radius: 4px; overflow: hidden; margin-bottom: 1.1rem; }
+    .inst-fill { height: 100%; background: linear-gradient(90deg, #7a3030, #9a4040); transition: width .5s ease; width: 0%; }
+    .inst-steps { list-style: none; margin: 0; padding: 0; }
+    .inst-steps li {
+      display: flex; align-items: center; gap: .65rem; padding: .55rem 0;
+      border-bottom: 1px solid #1a1a1a; font-size: .88rem; color: #666;
+    }
+    .inst-steps li:last-child { border-bottom: none; }
+    .inst-steps li.on { color: #ebe6dc; }
+    .inst-steps li.done { color: #7a9a7a; }
+    .inst-steps li.err { color: #c66; }
+    .inst-dot {
+      width: 1.1rem; height: 1.1rem; border-radius: 50%; border: 2px solid #333;
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: .65rem;
+    }
+    .inst-steps li.on .inst-dot { border-color: #9a4040; animation: pulse 1.2s ease infinite; }
+    .inst-steps li.done .inst-dot { border-color: #4a7a4a; background: #2a4a2a; color: #9aca9a; }
+    .inst-steps li.err .inst-dot { border-color: #a44; background: #3a2020; }
+    @keyframes pulse { 50% { box-shadow: 0 0 0 4px #9a404033; } }
+    #lock-err { color: #c66; font-size: .82rem; margin-top: .75rem; text-align: center; min-height: 1.2rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>RXTX<span class="mark">-NET</span> Shell</h1>
+    <p class="sub" id="intro">Публичная оболочка. Полный appliance — после оплаты лицензии или авторизации кошельком.</p>
+
+    <div class="tabs">
+      <div class="tab on" data-tab="pay" id="tab-pay">Оплатить</div>
+      <div class="tab" data-tab="go" id="tab-go">Продолжить</div>
+    </div>
+
+    <div id="panel-pay" class="card">
+      <div class="price" id="plan-price">$200</div>
+      <p class="hint" id="plan-label">Лицензия 30 дней</p>
+      <label id="lbl-plan">План</label>
+      <select id="plan">
+        <option value="license-30d">30 дней — $200</option>
+        <option value="license-90d">90 дней — $2000</option>
+      </select>
+      <label id="lbl-chain">Оплата</label>
+      <select id="chain">
+        <option value="ETH">Ethereum (ETH)</option>
+        <option value="BTC">Bitcoin (BTC)</option>
+      </select>
+      <label id="lbl-wallet">Адрес кошелька (станет первым паролем панели)</label>
+      <input id="wallet" placeholder="0x… или bc1…" autocomplete="off">
+      <button type="button" class="primary" id="btn-invoice">Создать счёт</button>
+      <p class="hint" id="hosting-note">Хостинг в сети $300/мес — внутри панели после установки.</p>
+      <div id="invoice" hidden class="inv"></div>
+      <p id="pay-err" class="err"></p>
+      <div id="install-bar" class="install-bar" hidden>
+        <button type="button" class="install" id="btn-install">Установить систему</button>
+        <p class="hint" id="install-hint">Одна прошивка — без второго dd. Устройство перезагрузится в полный RXTX.</p>
+      </div>
+    </div>
+
+    <div id="panel-go" class="card" hidden>
+      <p class="hint" id="go-text">Уже оплатили? Введите тот же адрес кошелька — он станет первым паролем панели. Данные сети сохранятся после авторизации внутри панели.</p>
+      <label id="lbl-go-wallet">Адрес кошелька</label>
+      <input id="go-wallet" placeholder="0x… или bc1…" autocomplete="off">
+      <button type="button" class="primary" id="btn-continue">Продолжить</button>
+      <p class="hint" id="rebind-note">Новое устройство: отвяжите предыдущее в панели или оплатите новую лицензию.</p>
+      <p id="go-ok" class="ok"></p>
+      <p id="go-err" class="err"></p>
+      <div id="install-bar-go" class="install-bar" hidden>
+        <button type="button" class="install" id="btn-install-go">Установить систему</button>
+      </div>
+    </div>
+  </div>
+  <div id="lock" hidden>
+    <div class="lock-card">
+      <h2 id="lock-title">Установка RXTX</h2>
+      <p id="lock-warn">Не выключайте питание</p>
+      <div class="inst-bar"><div id="inst-fill" class="inst-fill"></div></div>
+      <ul class="inst-steps" id="inst-steps"></ul>
+      <p id="lock-err"></p>
+    </div>
+  </div>
+  <script>
+    const GATEWAY = 'https://matrixarch.rxtxhub.com';
+    function gwURL(path) {
+      const u = new URL(path, GATEWAY);
+      if (u.origin !== GATEWAY) throw new Error('gateway mismatch');
+      return u.href;
+    }
+    const I18N = {
+      ru: {
+        intro: 'Публичная оболочка. Полный appliance — после оплаты лицензии или авторизации кошельком.',
+        tabPay: 'Оплатить', tabGo: 'Продолжить', lblPlan: 'План', lblChain: 'Оплата',
+        lblWallet: 'Адрес кошелька (станет первым паролем панели)',
+        btnInvoice: 'Создать счёт', hostingNote: 'Хостинг в сети $300/мес — внутри панели после установки.',
+        goText: 'Уже оплатили? Введите тот же адрес кошелька — он станет первым паролем панели. Данные сети сохранятся после авторизации внутри панели.',
+        lblGoWallet: 'Адрес кошелька', btnContinue: 'Продолжить',
+        rebindNote: 'Новое устройство: отвяжите предыдущее в панели или оплатите новую лицензию.',
+        saved: 'Оплата подтверждена. Нажмите «Установить систему».',
+        badWallet: 'Введите ETH (0x…) или BTC (bc1…) адрес',
+        btnInstall: 'Установить систему',
+        installHint: 'Одна прошивка — без второго dd. Перезагрузка в полный RXTX.',
+        lockTitle: 'Установка RXTX',
+        lockWarn: 'Не выключайте питание и не закрывайте страницу',
+        stepPrepare: 'Проверка оплаты',
+        stepBuild: 'Сборка на Matrixarch',
+        stepActivate: 'Активация лицензии',
+        stepDownload: 'Загрузка по WSSIL',
+        stepConfigure: 'Установка панели',
+        stepReboot: 'Перезагрузка',
+        stepError: 'Ошибка установки',
+      },
+      en: {
+        intro: 'Public shell. Full appliance after license payment or wallet authorization.',
+        tabPay: 'Pay', tabGo: 'Continue', lblPlan: 'Plan', lblChain: 'Payment',
+        lblWallet: 'Wallet address (becomes the first panel password)',
+        btnInvoice: 'Create invoice', hostingNote: 'NET hosting $300/mo — inside panel after install.',
+        goText: 'Already paid? Enter the same wallet — it becomes your first panel password. Network data is saved after in-panel authorization.',
+        lblGoWallet: 'Wallet address', btnContinue: 'Continue',
+        rebindNote: 'New device: unbind the old one in panel or pay for a new license.',
+        saved: 'Payment OK. Press Install system.',
+        badWallet: 'Enter ETH (0x…) or BTC (bc1…) address',
+        btnInstall: 'Install system',
+        installHint: 'Single flash — no second dd. Reboot into full RXTX.',
+        lockTitle: 'Installing RXTX',
+        lockWarn: 'Do not power off or close this page',
+        stepPrepare: 'Verifying payment',
+        stepBuild: 'Building on Matrixarch',
+        stepActivate: 'Activating license',
+        stepDownload: 'Downloading via WSSIL',
+        stepConfigure: 'Installing panel',
+        stepReboot: 'Rebooting',
+        stepError: 'Installation failed',
+      }
+    };
+    const LOCAL = '/local/';
+    const STEP_IDS = ['prepare', 'build', 'activate', 'download', 'configure', 'reboot'];
+    function isRuZone() {
+      const l = (navigator.language || '').toLowerCase();
+      if (l.startsWith('ru')) return true;
+      try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+        return /Europe\/(Moscow|Kaliningrad|Samara|Volgograd|Astrakhan|Kirov|Saratov|Ulyanovsk)|Asia\/(Yekaterinburg|Omsk|Novosibirsk|Krasnoyarsk|Irkutsk|Yakutsk|Vladivostok|Magadan|Kamchatka|Anadyr|Sakhalin|Barnaul|Tomsk|Novokuznetsk|Chita)/.test(tz);
+      } catch (_) { return false; }
+    }
+    const lang = isRuZone() ? 'ru' : 'en';
+    function t(k) { return I18N[lang][k] || k; }
+    function stepLabel(id) {
+      const key = 'step' + id.charAt(0).toUpperCase() + id.slice(1);
+      return t(key) || id;
+    }
+    function progressToStepIdx(p) {
+      if (p >= 98) return 5;
+      if (p >= 90) return 4;
+      if (p >= 70) return 3;
+      if (p >= 50) return 2;
+      if (p >= 30) return 1;
+      return 0;
+    }
+    function renderInstallSteps(current, progress, isErr) {
+      const ul = document.getElementById('inst-steps');
+      if (!ul) return;
+      const cur = (current || 'prepare').toLowerCase();
+      let curIdx = STEP_IDS.indexOf(cur);
+      if (curIdx < 0 && isErr) curIdx = progressToStepIdx(progress || 0);
+      ul.innerHTML = STEP_IDS.map((id, i) => {
+        let cls = '';
+        if (isErr && i === curIdx) cls = 'err';
+        else if (i < curIdx) cls = 'done';
+        else if (i === curIdx) cls = 'on';
+        const mark = cls === 'done' ? '✓' : '';
+        return '<li class="' + cls + '" data-step="' + id + '"><span class="inst-dot">' + mark + '</span><span>' + stepLabel(id) + '</span></li>';
+      }).join('');
+    }
+    function applyLang() {
+      document.documentElement.lang = lang;
+      document.getElementById('intro').textContent = t('intro');
+      document.getElementById('tab-pay').textContent = t('tabPay');
+      document.getElementById('tab-go').textContent = t('tabGo');
+      document.getElementById('lbl-plan').textContent = t('lblPlan');
+      document.getElementById('lbl-chain').textContent = t('lblChain');
+      document.getElementById('lbl-wallet').textContent = t('lblWallet');
+      document.getElementById('btn-invoice').textContent = t('btnInvoice');
+      document.getElementById('hosting-note').textContent = t('hostingNote');
+      document.getElementById('go-text').textContent = t('goText');
+      document.getElementById('lbl-go-wallet').textContent = t('lblGoWallet');
+      document.getElementById('btn-continue').textContent = t('btnContinue');
+      document.getElementById('rebind-note').textContent = t('rebindNote');
+      const bi = document.getElementById('btn-install');
+      const big = document.getElementById('btn-install-go');
+      if (bi) bi.textContent = t('btnInstall');
+      if (big) big.textContent = t('btnInstall');
+      const ih = document.getElementById('install-hint');
+      if (ih) ih.textContent = t('installHint');
+      const lt = document.getElementById('lock-title');
+      const lw = document.getElementById('lock-warn');
+      if (lt) lt.textContent = t('lockTitle');
+      if (lw) lw.textContent = t('lockWarn');
+      renderInstallSteps('prepare', 0, false);
+    }
+    function showInstallBars() {
+      document.getElementById('install-bar').hidden = false;
+      document.getElementById('install-bar-go').hidden = false;
+    }
+    function lockUI(on) {
+      document.getElementById('lock').hidden = !on;
+      document.body.style.overflow = on ? 'hidden' : '';
+      if (on) {
+        document.getElementById('lock-err').textContent = '';
+        renderInstallSteps('prepare', 0, false);
+        document.getElementById('inst-fill').style.width = '0%';
+      }
+    }
+    function updateInstallUI(st) {
+      const step = (st.step || st.phase || 'prepare').toLowerCase();
+      const pct = st.progress || 0;
+      const isErr = step === 'error' || !!st.error;
+      renderInstallSteps(step, pct, isErr);
+      document.getElementById('inst-fill').style.width = Math.min(100, pct) + '%';
+      const errEl = document.getElementById('lock-err');
+      errEl.textContent = st.error || '';
+    }
+    async function pollInstallStatus() {
+      for (let i = 0; i < 900; i++) {
+        await new Promise(x => setTimeout(x, 2000));
+        try {
+          const st = await fetch(LOCAL + 'status').then(x => x.json());
+          updateInstallUI(st);
+          if (st.error) return false;
+          if (st.step === 'reboot' || st.phase === 'reboot') return true;
+          if (!st.locked && st.step !== 'prepare') return true;
+        } catch (_) {}
+      }
+      return true;
+    }
+    async function installToken() {
+      const t = await fetch(LOCAL + 'token').then(x => x.json());
+      return t.token || '';
+    }
+    async function startInstall(wallet) {
+      lockUI(true);
+      try {
+        const token = await installToken();
+        const r = await fetch(LOCAL + 'install', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-RXTX-Install-Token': token },
+          body: JSON.stringify({
+            wallet,
+            invoiceId: localStorage.getItem('rxtx_invoice_id') || '',
+            planId: document.getElementById('plan')?.value || 'license-30d',
+          }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        updateInstallUI({ step: 'prepare', progress: 5 });
+        await pollInstallStatus();
+      } catch (e) {
+        lockUI(false);
+        alert(String(e));
+      }
+    }
+    function bindInstall(btnId, walletFn) {
+      const el = document.getElementById(btnId);
+      if (!el) return;
+      el.onclick = () => startInstall(walletFn());
+    }
+    applyLang();
+    (async () => {
+      try {
+        const st = await fetch(LOCAL + 'status').then(r => r.json());
+        if (st.locked) { lockUI(true); updateInstallUI(st); pollInstallStatus(); }
+      } catch (_) {}
+    })();
+
+    function validWallet(w) {
+      w = (w || '').trim();
+      return (w.startsWith('0x') && w.length >= 42) || w.toLowerCase().startsWith('bc1');
+    }
+    function saveWallet(w) {
+      localStorage.setItem('rxtx_wallet_anchor', w.trim());
+      localStorage.setItem('rxtx_initial_password', w.trim());
+    }
+
+    document.querySelectorAll('.tab').forEach(el => {
+      el.onclick = () => {
+        document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+        el.classList.add('on');
+        const pay = el.dataset.tab === 'pay';
+        document.getElementById('panel-pay').hidden = !pay;
+        document.getElementById('panel-go').hidden = pay;
+      };
+    });
+
+    document.getElementById('plan').onchange = () => {
+      const v = document.getElementById('plan').value;
+      document.getElementById('plan-price').textContent = v === 'license-90d' ? '$2000' : '$200';
+      document.getElementById('plan-label').textContent = v === 'license-90d'
+        ? (lang === 'ru' ? 'Лицензия 90 дней' : 'License 90 days')
+        : (lang === 'ru' ? 'Лицензия 30 дней' : 'License 30 days');
+    };
+
+    document.getElementById('btn-invoice').onclick = async () => {
+      const wallet = document.getElementById('wallet').value.trim();
+      document.getElementById('pay-err').textContent = '';
+      if (!validWallet(wallet)) { document.getElementById('pay-err').textContent = t('badWallet'); return; }
+      saveWallet(wallet);
+      try {
+        const r = await fetch(gwURL('/checkout/invoice'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            planId: document.getElementById('plan').value,
+            chain: document.getElementById('chain').value,
+            wallet,
+          }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        const inv = await r.json();
+        const box = document.getElementById('invoice');
+        box.hidden = false;
+        box.innerHTML = '<div><b>' + inv.cryptoAmount + ' ' + inv.chain + '</b></div>'
+          + '<div>' + (lang === 'ru' ? 'На адрес' : 'To') + ': <code>' + inv.address + '</code></div>'
+          + '<div>' + (lang === 'ru' ? 'Сумма уникальна — не округляйте' : 'Exact amount — do not round') + '</div>'
+          + '<div id="pay-status" class="hint">' + (lang === 'ru' ? 'Ожидание tx…' : 'Waiting for tx…') + '</div>'
+          + '<div class="conf-bar"><div id="conf-fill" class="conf-fill" style="width:0%"></div></div>'
+          + '<div id="conf-timer" class="conf-timer"></div>';
+        localStorage.setItem('rxtx_invoice_id', inv.id);
+        pollInvoice(inv.id, wallet, inv.requiredConf || 1);
+      } catch (e) {
+        document.getElementById('pay-err').textContent = String(e);
+      }
+    };
+
+    function renderConf(st, req) {
+      const el = document.getElementById('pay-status');
+      const fill = document.getElementById('conf-fill');
+      const timer = document.getElementById('conf-timer');
+      if (!el) return;
+      const conf = st.confirmations || 0;
+      const need = st.requiredConf || req || 1;
+      const pct = Math.min(100, Math.round((conf / need) * 100));
+      if (fill) fill.style.width = (st.status === 'seen' && conf === 0 ? '8%' : pct + '%');
+      if (st.status === 'pending') {
+        el.textContent = lang === 'ru' ? 'Ожидание tx…' : 'Waiting for tx…';
+        if (timer) timer.textContent = '';
+        return;
+      }
+      if (st.status === 'seen') {
+        el.textContent = lang === 'ru' ? 'Tx найдена — можно продолжать, идут блоки…' : 'Tx seen — you can continue, blocks confirming…';
+        el.className = 'ok';
+      } else if (st.status === 'confirming') {
+        el.textContent = (lang === 'ru' ? 'Подтверждение блоков ' : 'Confirming blocks ') + conf + '/' + need;
+        el.className = 'hint';
+      } else if (st.status === 'confirmed') {
+        el.textContent = lang === 'ru' ? 'Полностью подтверждено' : 'Fully confirmed';
+        el.className = 'ok';
+        if (fill) fill.style.width = '100%';
+      }
+      if (timer) timer.textContent = (lang === 'ru' ? 'Блоки: ' : 'Blocks: ') + conf + '/' + need;
+    }
+
+    async function pollInvoice(id, wallet, req) {
+      const started = Date.now();
+      for (let i = 0; i < 900; i++) {
+        await new Promise(r => setTimeout(r, 5000));
+        try {
+          const q = 'id=' + encodeURIComponent(id) + '&wallet=' + encodeURIComponent(wallet);
+          const st = await fetch(gwURL('/checkout/status?' + q)).then(r => r.json());
+          renderConf(st, req);
+          if (st.canContinue) {
+            localStorage.setItem('rxtx_payment_ok', '1');
+            showInstallBars();
+          }
+          if (st.status === 'confirmed') return;
+          if (st.status === 'expired') {
+            const el = document.getElementById('pay-status');
+            if (el) { el.textContent = lang === 'ru' ? 'Счёт истёк' : 'Invoice expired'; el.className = 'err'; }
+            return;
+          }
+        } catch (_) {}
+        if (Date.now() - started > 7200000) return;
+      }
+    }
+
+    document.getElementById('btn-continue').onclick = async () => {
+      const w = document.getElementById('go-wallet').value.trim();
+      document.getElementById('go-err').textContent = '';
+      document.getElementById('go-ok').textContent = '';
+      if (!validWallet(w)) { document.getElementById('go-err').textContent = t('badWallet'); return; }
+      try {
+        const st = await fetch(gwURL('/checkout/status?wallet=' + encodeURIComponent(w))).then(r => r.json());
+        if (!st.canContinue) {
+          document.getElementById('go-err').textContent = lang === 'ru'
+            ? 'Сначала оплатите — tx должна появиться в сети'
+            : 'Pay first — tx must appear on chain';
+          return;
+        }
+      } catch (_) {
+        document.getElementById('go-err').textContent = lang === 'ru' ? 'Нет связи с Matrixarch' : 'Matrixarch unreachable';
+        return;
+      }
+      saveWallet(w);
+      document.getElementById('go-ok').textContent = t('saved');
+      showInstallBars();
+    };
+    bindInstall('btn-install', () => document.getElementById('wallet').value.trim() || localStorage.getItem('rxtx_wallet_anchor'));
+    bindInstall('btn-install-go', () => document.getElementById('go-wallet').value.trim() || localStorage.getItem('rxtx_wallet_anchor'));
+    if (localStorage.getItem('rxtx_payment_ok') === '1') showInstallBars();
+  </script>
+</body>
+</html>
